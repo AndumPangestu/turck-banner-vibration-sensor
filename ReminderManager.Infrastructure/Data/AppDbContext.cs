@@ -24,6 +24,12 @@ namespace ReminderManager.Infrastructure.Data
                 .HasForeignKey(v => v.DeviceId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<ThresholdEvent>()
+                .HasOne(v => v.Device)
+                .WithMany(t => t.ThresholdEvents)
+                .HasForeignKey(v => v.DeviceId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             modelBuilder.Entity<Threshold>()
                 .HasOne(t => t.Device)
                 .WithOne(d => d.Threshold)
@@ -45,5 +51,6 @@ namespace ReminderManager.Infrastructure.Data
 
         public DbSet<Threshold> Threshold { get; set; }
 
+        public DbSet<ThresholdEvent> ThresholdEvent { get; set; }
     }
 }

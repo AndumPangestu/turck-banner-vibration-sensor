@@ -34,18 +34,22 @@ namespace ModbusTcpWorkerService
     }
 
     // Handler Implementation with MQTT Data Tracking
+    // Handler Implementation with MQTT Data Tracking and Threshold Monitoring
     public class ModbusDataHandler : IModbusDataHandler
     {
         private readonly ILogger<ModbusDataHandler> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
+        private readonly IThresholdMonitoringService _thresholdService;
         private readonly ConcurrentDictionary<int, MqttDeviceData> _latestData = new();
 
         public ModbusDataHandler(
             ILogger<ModbusDataHandler> logger,
-            IServiceScopeFactory scopeFactory)
+            IServiceScopeFactory scopeFactory,
+            IThresholdMonitoringService thresholdService)
         {
             _logger = logger;
             _scopeFactory = scopeFactory;
+            _thresholdService = thresholdService;
         }
 
         public async Task HandleDataAsync(ModbusDataSnapshot snapshot, CancellationToken ct)
@@ -82,7 +86,7 @@ namespace ModbusTcpWorkerService
 
             if (snapshot.HoldingRegisters.Length >= 6)
             {
-                // Convert ushort to double (assuming registers contain scaled values)
+                // Convert ushort to double
                 mqttData.Temp = ConvertRegisterToDouble(snapshot.HoldingRegisters[0]);
                 mqttData.AccX = ConvertRegisterToDouble(snapshot.HoldingRegisters[1]);
                 mqttData.AccZ = ConvertRegisterToDouble(snapshot.HoldingRegisters[2]);
@@ -91,16 +95,28 @@ namespace ModbusTcpWorkerService
 
                 _latestData[snapshot.DeviceId] = mqttData;
 
+                // Save sensor data to database
                 await SaveSensorDataAsync(snapshot, ct);
+
+                // Check thresholds (async, no need to wait)
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _thresholdService.CheckThresholdsAsync(snapshot, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "{Device} Threshold check failed", devicePrefix);
+                    }
+                }, ct);
             }
         }
 
         private double ConvertRegisterToDouble(ushort register)
         {
-            // Convert register value to signed and scale if needed
-            // Adjust this conversion based on your device's register format
             short signedValue = unchecked((short)register);
-            return signedValue; // Example: divide by 100 if register stores value * 100
+            return signedValue;
         }
 
         public MqttDeviceData GetLatestDeviceData(int deviceId)
@@ -412,6 +428,7 @@ namespace ModbusTcpWorkerService
 
             var enabledDevices = await db.ModbusDeviceConfig
                 .Where(d => d.Enabled)
+                .Include(d => d.Threshold)
                 .ToListAsync(ct);
 
             _logger.LogInformation("Found {Count} enabled devices", enabledDevices.Count);
@@ -648,34 +665,52 @@ namespace ModbusTcpWorkerService
     }
 
     // Extension Methods for Service Registration
-    public static class ModbusServiceExtensions
+    // Extension Methods for Service Registration
+public static class ModbusServiceExtensions
+{
+    public static IServiceCollection AddModbusServices(
+        this IServiceCollection services,
+        string connectionString,
+        string redisConnectionString,
+        MqttConfig mqttConfig = null)
     {
-        public static IServiceCollection AddModbusServices(
-            this IServiceCollection services,
-            string connectionString,
-            MqttConfig mqttConfig = null)
+        // Database Context
+        services.AddDbContext<AppDbContext>(opts =>
         {
-            // Database Context
-            services.AddDbContext<AppDbContext>(opts =>
-            {
-                opts.UseMySql(
-                    connectionString,
-                    ServerVersion.AutoDetect(connectionString),
-                    mysqlopts => mysqlopts.MigrationsAssembly("ReminderManager.Infrastructure")
-                );
-            });
+            opts.UseMySql(
+                connectionString,
+                ServerVersion.AutoDetect(connectionString),
+                mysqlopts => mysqlopts.MigrationsAssembly("ReminderManager.Infrastructure")
+            );
+        });
 
-            // MQTT Configuration
-            var config = mqttConfig ?? new MqttConfig();
-            services.AddSingleton(config);
+        // Redis Connection
+        services.AddSingleton<IConnectionMultiplexer>(sp =>
+        {
+            var configuration = ConfigurationOptions.Parse(redisConnectionString);
+            configuration.AbortOnConnectFail = false;
+            configuration.ConnectRetry = 3;
+            configuration.ConnectTimeout = 5000;
+            configuration.SyncTimeout = 5000;
+            
+            return ConnectionMultiplexer.Connect(configuration);
+        });
 
-            // Modbus Services
-            services.AddSingleton<IModbusDataHandler, ModbusDataHandler>();
-            services.AddSingleton<IMqttPublisher, MqttPublisher>();
-            services.AddSingleton<ModbusMultiDeviceManager>();
-            services.AddHostedService(provider => provider.GetRequiredService<ModbusMultiDeviceManager>());
+        // MQTT Configuration
+        var config = mqttConfig ?? new MqttConfig();
+        services.AddSingleton(config);
 
-            return services;
-        }
+        // Modbus Services
+        services.AddSingleton<IModbusDataHandler, ModbusDataHandler>();
+        services.AddSingleton<IMqttPublisher, MqttPublisher>();
+        services.AddSingleton<IThresholdMonitoringService, ThresholdMonitoringService>();
+        
+        // Background Services
+        services.AddSingleton<ModbusMultiDeviceManager>();
+        services.AddHostedService(provider => provider.GetRequiredService<ModbusMultiDeviceManager>());
+        services.AddHostedService<ThresholdPersistenceService>();
+
+        return services;
     }
+}
 }

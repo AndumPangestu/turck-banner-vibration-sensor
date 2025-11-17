@@ -14,7 +14,7 @@ public class Program
         try
         {
             var host = CreateHostBuilder(args).Build();
-            Console.WriteLine("=== Modbus TCP Worker Service with MQTT ===");
+            Console.WriteLine("=== Modbus TCP Worker Service with MQTT & Threshold Monitoring ===");
             Console.WriteLine("Starting application...\n");
             await host.RunAsync();
         }
@@ -30,7 +30,6 @@ public class Program
         Host.CreateDefaultBuilder(args)
             .ConfigureAppConfiguration((context, config) =>
             {
-                // Add additional configuration sources if needed
                 config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
                 config.AddJsonFile(
                     $"appsettings.{context.HostingEnvironment.EnvironmentName}.json",
@@ -42,7 +41,7 @@ public class Program
             })
             .ConfigureServices((context, services) =>
             {
-                // Get connection string
+                // Get connection strings
                 var connectionString = context.Configuration.GetConnectionString("DefaultConnection");
                 if (string.IsNullOrEmpty(connectionString))
                 {
@@ -50,7 +49,12 @@ public class Program
                         "Connection string 'DefaultConnection' not found in configuration");
                 }
 
-                // Load MQTT Configuration from appsettings.json
+                var redisConnectionString = context.Configuration.GetConnectionString("Redis")
+                    ?? "localhost:6379";
+
+                Console.WriteLine($"Redis Connection: {redisConnectionString}");
+
+                // Load MQTT Configuration
                 var mqttConfig = new MqttConfig();
                 context.Configuration.GetSection("Mqtt").Bind(mqttConfig);
 
@@ -67,7 +71,7 @@ public class Program
                     mqttConfig.Topic = "modbus/sensor/data";
                 }
 
-                // Log MQTT configuration
+                // Log configurations
                 Console.WriteLine("\n=== MQTT Configuration ===");
                 Console.WriteLine($"Host: {mqttConfig.Host}");
                 Console.WriteLine($"Port: {mqttConfig.Port}");
@@ -75,24 +79,29 @@ public class Program
                 Console.WriteLine($"Client ID: {mqttConfig.ClientId}");
                 Console.WriteLine($"Publish Interval: {mqttConfig.PublishIntervalMs}ms");
                 Console.WriteLine($"Username: {(string.IsNullOrEmpty(mqttConfig.Username) ? "Not configured" : "Configured")}");
-                Console.WriteLine("==========================\n");
+                Console.WriteLine("==========================");
 
-                // Register all Modbus services with MQTT configuration
-                services.AddModbusServices(connectionString, mqttConfig);
+                Console.WriteLine("\n=== Threshold Monitoring ===");
+                Console.WriteLine("Enabled with Redis caching");
+                Console.WriteLine("Persistence interval: 5 minutes");
+                Console.WriteLine("Value change threshold: 5% or absolute 1.0");
+                Console.WriteLine("============================\n");
+
+                // Register all services
+                services.AddModbusServices(connectionString, redisConnectionString, mqttConfig);
             })
             .ConfigureLogging((context, logging) =>
             {
                 logging.ClearProviders();
                 logging.AddConsole();
 
-                // Set log levels from configuration or use defaults
                 var logLevel = context.Configuration.GetValue<LogLevel?>("Logging:LogLevel:Default")
                     ?? LogLevel.Information;
                 logging.SetMinimumLevel(logLevel);
 
-                // Optional: Add more detailed logging for specific namespaces
                 logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning);
                 logging.AddFilter("ModbusTcpWorkerService", LogLevel.Information);
+                logging.AddFilter("StackExchange.Redis", LogLevel.Warning);
             })
-            .UseConsoleLifetime(); // Allows Ctrl+C to gracefully shutdown
+            .UseConsoleLifetime();
 }

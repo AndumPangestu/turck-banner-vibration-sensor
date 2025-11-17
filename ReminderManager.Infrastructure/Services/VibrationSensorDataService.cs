@@ -34,6 +34,16 @@ namespace ReminderManager.Infrastructure.Services
                 query = query.Where(v => v.DeviceId == filter.DeviceId.Value);
             }
 
+            if (filter.StartDate.HasValue)
+            {
+                query = query.Where(v => v.CreatedAt >= filter.StartDate.Value);
+            }
+
+            if (filter.EndDate.HasValue)
+            {
+                query = query.Where(v => v.CreatedAt <= filter.EndDate.Value);
+            }
+
             // total sebelum pagination
             var total = await query.CountAsync();
 
