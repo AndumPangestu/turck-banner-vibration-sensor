@@ -11,5 +11,7 @@ namespace ReminderManager.Domain.DTO
         public required int Status { get; set; }
         public required string Message { get; set; }
         public required T Data { get; set; }
+
+        public Pagination? Pagination { get; set; }
     }
 }

@@ -63,7 +63,7 @@ namespace ReminderManager.Domain.DTO
     public class ThresholdResponse
     {
         public int Id { get; set; }
-        public int? DeviceId { get; set; }
+        public int DeviceId { get; set; }
         public string? DeviceName { get; set; }
         
         public double ThresholdVelocityX { get; set; }

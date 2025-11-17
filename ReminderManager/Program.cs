@@ -94,13 +94,16 @@ builder.Services.AddDbContext<AppDbContext>(opts =>
     opts.UseMySql(
         connectionString,
         ServerVersion.AutoDetect(connectionString),
-        mysqlopts => mysqlopts.MigrationsAssembly("ReminderManager.Infrastructure")
+        mysqlopts => mysqlopts.MigrationsAssembly("ReminderManager.Infra" +
+        "structure")
     );
 });
 
 // Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IVibrationSensorDataService, VibrationSensorDataService>();
+builder.Services.AddScoped<IThresholdService, ThresholdService>();
+builder.Services.AddScoped<IModbusDeviceConfigService, ModbusDeviceConfigService>();
 var app = builder.Build();
 
 

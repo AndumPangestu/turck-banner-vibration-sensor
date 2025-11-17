@@ -24,6 +24,13 @@ namespace ReminderManager.Infrastructure.Data
                 .HasForeignKey(v => v.DeviceId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            modelBuilder.Entity<Threshold>()
+                .HasOne(t => t.Device)
+                .WithOne(d => d.Threshold)
+                .HasForeignKey<Threshold>(t => t.DeviceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
             modelBuilder.Entity<User>().HasData(
                 new User {  Username = "Admin", Password = BCrypt.Net.BCrypt.HashPassword("123123") }
             );

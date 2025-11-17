@@ -16,7 +16,7 @@ namespace ReminderManager.Domain.Entities
         public int Id { get; set; }
 
         [Column("device_id")]
-        public int? DeviceId { get; set; }
+        public int DeviceId { get; set; }
 
         [ForeignKey("DeviceId")]
         public ModbusDeviceConfig? Device { get; set; }

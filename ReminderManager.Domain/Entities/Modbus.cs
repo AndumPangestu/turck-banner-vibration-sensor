@@ -57,6 +57,7 @@ namespace ReminderManager.Domain.Entities
 
         public ICollection<VibrationSensorData> VibrationSensorDataList { get; set; }
 
+        public Threshold? Threshold { get; set; }
     }
 
     // Application Configuration

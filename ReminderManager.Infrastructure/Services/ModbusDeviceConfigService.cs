@@ -11,27 +11,30 @@ using ReminderManager.Domain.Entities;
 
 namespace ReminderManager.Infrastructure.Services
 {
-    public class VibrationSensorDataService : IVibrationSensorDataService
+    public class ModbusDeviceConfigService : IModbusDeviceConfigService
     {
 
         private readonly AppDbContext _dbContext;
 
-        public VibrationSensorDataService(AppDbContext dbContext)
+        public ModbusDeviceConfigService(AppDbContext dbContext)
         {
             _dbContext = dbContext;
         }
 
 
-        public async Task<Pageable<VibrationSensorDataResponse>> GetVibrationDataAsync(VibrationSensorDataFilterRequest filter)
+        public async Task<Pageable<ModbusDeviceConfigResponse>> Get(ModbusDeviceConfigFilterRequest filter)
         {
 
             // query awal
-            var query = _dbContext.VibrationSensorData.Include(t => t.Device).AsQueryable();
+            var query = _dbContext.ModbusDeviceConfig.AsQueryable();
 
             // filter keyword (Code LIKE %keyword%)
-            if (filter.DeviceId.HasValue)
+            if (!string.IsNullOrWhiteSpace(filter.Keyword))
             {
-                query = query.Where(v => v.DeviceId == filter.DeviceId.Value);
+                // contoh: filter berdasarkan message
+                query = query.Where(t =>
+                    t.DeviceName.Contains(filter.Keyword)
+                );
             }
 
             // total sebelum pagination
@@ -41,7 +44,7 @@ namespace ReminderManager.Infrastructure.Services
             query = query.OrderByDescending(r => r.CreatedAt);
 
 
-            List<VibrationSensorData> vibrationSensorData;
+            List<ModbusDeviceConfig> vibrationSensorData;
 
             if (filter.Paginate)
             {
@@ -53,9 +56,9 @@ namespace ReminderManager.Infrastructure.Services
                 vibrationSensorData = await query.ToListAsync();
             }
 
-            var response = new Pageable<VibrationSensorDataResponse>
+            var response = new Pageable<ModbusDeviceConfigResponse>
             {
-                Data = vibrationSensorData.Select(r => r.ToVibrationSensorDataResponse())
+                Data = vibrationSensorData.Select(r => r.ToModbusDeviceConfigResponse())
             };
 
             if (filter.Paginate)
