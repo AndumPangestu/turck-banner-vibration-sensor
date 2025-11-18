@@ -8,9 +8,9 @@ using ReminderManager.Domain.DTO;
 
 namespace ReminderManager.Application.Validation
 {
-    public class VibrationSensorDataFilterValidator : AbstractValidator<VibrationSensorDataFilterRequest>
+    public class ThresholdEventFilterValidator : AbstractValidator<ThresholdEventFilterRequest>
     {
-        public VibrationSensorDataFilterValidator()
+        public ThresholdEventFilterValidator()
         {
             RuleFor(d => d.DeviceId)
                 .Must(x => x > 0)

@@ -231,7 +231,7 @@ namespace ModbusTcpWorkerService
                     ActualValue = e.ActualValue,
                     ThresholdValue = e.ThresholdValue,
                     Message = e.Message,
-                    CreatedAt = e.TriggeredAt
+                    TriggeredAt = e.TriggeredAt
                 }).ToList();
 
                 await db.ThresholdEvent.AddRangeAsync(entities, ct);
@@ -299,7 +299,7 @@ namespace ModbusTcpWorkerService
 
                 return await db.ThresholdEvent
                     .Where(e => e.DeviceId == deviceId)
-                    .OrderByDescending(e => e.CreatedAt)
+                    .OrderByDescending(e => e.TriggeredAt)
                     .Take(count)
                     .ToListAsync(ct);
             }
@@ -352,7 +352,7 @@ namespace ModbusTcpWorkerService
         private readonly ILogger<ThresholdPersistenceService> _logger;
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly IConnectionMultiplexer _redis;
-        private readonly TimeSpan _persistInterval = TimeSpan.FromMinutes(5);
+        private readonly TimeSpan _persistInterval = TimeSpan.FromMinutes(1);
 
         public ThresholdPersistenceService(
             ILogger<ThresholdPersistenceService> logger,
@@ -426,7 +426,7 @@ namespace ModbusTcpWorkerService
                         ActualValue = e.ActualValue,
                         ThresholdValue = e.ThresholdValue,
                         Message = e.Message,
-                        CreatedAt = e.TriggeredAt
+                        TriggeredAt = e.TriggeredAt
                     }).ToList();
 
                     await dbContext.ThresholdEvent.AddRangeAsync(entities, ct);

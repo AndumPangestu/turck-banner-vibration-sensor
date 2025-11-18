@@ -37,8 +37,8 @@ namespace ReminderManager.Domain.Entities
         [Column("message")]
         public string Message { get; set; }
 
-        [Column("created_at")]
-        public DateTime CreatedAt { get; set; }
+        [Column("triggered_at")]
+        public DateTime TriggeredAt { get; set; }
 
     }
 }

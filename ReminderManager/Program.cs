@@ -104,6 +104,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IVibrationSensorDataService, VibrationSensorDataService>();
 builder.Services.AddScoped<IThresholdService, ThresholdService>();
 builder.Services.AddScoped<IModbusDeviceConfigService, ModbusDeviceConfigService>();
+builder.Services.AddScoped<IThresholdEventService, ThresholdEventService>();
 var app = builder.Build();
 
 

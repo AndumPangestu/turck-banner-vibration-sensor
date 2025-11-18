@@ -20,6 +20,7 @@ using MQTTnet.Protocol;
 using NModbus;
 using ReminderManager.Domain.Entities;
 using ReminderManager.Infrastructure.Data;
+using StackExchange.Redis;
 
 namespace ModbusTcpWorkerService
 {
