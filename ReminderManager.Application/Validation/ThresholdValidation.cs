@@ -30,6 +30,19 @@ namespace ReminderManager.Application.Validation
                     .WithMessage("MessageThresholdVelocityX wajib diisi jika ThresholdVelocityX > 0.");
             });
 
+            // ThresholdVelocityY wajib diisi dan bernilai positif
+            RuleFor(x => x.ThresholdVelocityY)
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("ThresholdVelocityY tidak boleh bernilai negatif.");
+
+            // Pesan VelocityY wajib diisi jika ThresholdVelocityY > 0
+            When(x => x.ThresholdVelocityY > 0, () =>
+            {
+                RuleFor(x => x.MessageThresholdVelocityY)
+                    .NotEmpty()
+                    .WithMessage("MessageThresholdVelocityY wajib diisi jika ThresholdVelocityY > 0.");
+            });
+
             // ThresholdVelocityZ
             RuleFor(x => x.ThresholdVelocityZ)
                 .GreaterThanOrEqualTo(0)
@@ -52,6 +65,18 @@ namespace ReminderManager.Application.Validation
                 RuleFor(x => x.MessageThresholdAccelerationX)
                     .NotEmpty()
                     .WithMessage("MessageThresholdAccelerationX wajib diisi jika ThresholdAccelerationX > 0.");
+            });
+
+            // ThresholdAccelerationY
+            RuleFor(x => x.ThresholdAccelerationY)
+                .GreaterThanOrEqualTo(0)
+                .WithMessage("ThresholdAccelerationY tidak boleh bernilai negatif.");
+
+            When(x => x.ThresholdAccelerationY > 0, () =>
+            {
+                RuleFor(x => x.MessageThresholdAccelerationY)
+                    .NotEmpty()
+                    .WithMessage("MessageThresholdAccelerationY wajib diisi jika ThresholdAccelerationY > 0.");
             });
 
             // ThresholdAccelerationZ
