@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO.Ports;
 using System.Linq;
-using System.Net.Sockets;
 using System.Text;
 using System.Text.Json;
 using System.Threading;
@@ -11,6 +11,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using ModbusTcpWorkerService;
 using ModbusWorkerService;
 using MQTTnet;
 using MQTTnet.Diagnostics.Logger;
@@ -18,15 +19,14 @@ using MQTTnet.Exceptions;
 using MQTTnet.Internal;
 using MQTTnet.Protocol;
 using NModbus;
+using NModbus.Serial;
+using ReminderManager.Application.Interfaces;
 using ReminderManager.Domain.Entities;
 using ReminderManager.Infrastructure.Data;
 using StackExchange.Redis;
 
-namespace ModbusTcpWorkerService
+namespace ModbusRtuWorkerService
 {
-    
-    
-
     // Data Handler Interface
     public interface IModbusDataHandler
     {
@@ -34,7 +34,6 @@ namespace ModbusTcpWorkerService
         MqttDeviceData GetLatestDeviceData(int deviceId);
     }
 
-    // Handler Implementation with MQTT Data Tracking
     // Handler Implementation with MQTT Data Tracking and Threshold Monitoring
     public class ModbusDataHandler : IModbusDataHandler
     {
@@ -56,6 +55,8 @@ namespace ModbusTcpWorkerService
         public async Task HandleDataAsync(ModbusDataSnapshot snapshot, CancellationToken ct)
         {
             var devicePrefix = $"[{snapshot.DeviceId}]";
+
+            
 
             // Create MQTT data entry
             var mqttData = new MqttDeviceData
@@ -85,14 +86,29 @@ namespace ModbusTcpWorkerService
             _logger.LogInformation("{Device} Read {Count} registers - {DeviceName}",
                 devicePrefix, snapshot.HoldingRegisters.Length, snapshot.DeviceName);
 
-            if (snapshot.HoldingRegisters.Length >= 6)
+            if (snapshot.HoldingRegisters.Length >= 7)
             {
+
                 // Convert ushort to double
-                mqttData.Temp = ConvertRegisterToDouble(snapshot.HoldingRegisters[0]);
+                mqttData.VelX = ConvertRegisterToDouble(snapshot.HoldingRegisters[0]);
                 mqttData.AccX = ConvertRegisterToDouble(snapshot.HoldingRegisters[1]);
-                mqttData.AccZ = ConvertRegisterToDouble(snapshot.HoldingRegisters[2]);
-                mqttData.VelX = ConvertRegisterToDouble(snapshot.HoldingRegisters[3]);
+                mqttData.VelY = ConvertRegisterToDouble(snapshot.HoldingRegisters[2]);
+                mqttData.AccY = ConvertRegisterToDouble(snapshot.HoldingRegisters[3]);
                 mqttData.VelZ = ConvertRegisterToDouble(snapshot.HoldingRegisters[4]);
+                mqttData.AccZ = ConvertRegisterToDouble(snapshot.HoldingRegisters[5]);
+                mqttData.Temp = ConvertRegisterToDouble(snapshot.HoldingRegisters[6]);
+
+                var threshold = await _thresholdService.GetThresholdConfigAsync(snapshot.DeviceId, ct);
+                if (threshold != null)
+                {
+                    mqttData.ThresholdVelX = threshold.ThresholdVelocityX;
+                    mqttData.ThresholdAccX = threshold.ThresholdAccelerationX;
+                    mqttData.ThresholdVelY = threshold.ThresholdVelocityY;
+                    mqttData.ThresholdAccY = threshold.ThresholdAccelerationY;
+                    mqttData.ThresholdVelZ = threshold.ThresholdVelocityZ;
+                    mqttData.ThresholdAccZ = threshold.ThresholdAccelerationZ;
+                    mqttData.ThresholdTemp = threshold.ThresholdTemperature;
+                }
 
                 _latestData[snapshot.DeviceId] = mqttData;
 
@@ -135,11 +151,13 @@ namespace ModbusTcpWorkerService
                 var sensorData = new VibrationSensorData
                 {
                     DeviceId = snapshot.DeviceId,
-                    Temperature = snapshot.HoldingRegisters[0],
+                    VelocityX = snapshot.HoldingRegisters[0],
                     AccelerationX = snapshot.HoldingRegisters[1],
-                    AccelerationZ = snapshot.HoldingRegisters[2],
-                    VelocityX = snapshot.HoldingRegisters[3],
+                    VelocityY = snapshot.HoldingRegisters[2],
+                    AccelerationY = snapshot.HoldingRegisters[3],
                     VelocityZ = snapshot.HoldingRegisters[4],
+                    AccelerationZ = snapshot.HoldingRegisters[5],
+                    Temperature = snapshot.HoldingRegisters[6],
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -157,12 +175,12 @@ namespace ModbusTcpWorkerService
         }
     }
 
-    // Modbus Device Connection Manager
+    // Modbus RTU Device Connection Manager
     public class ModbusDeviceConnection : IAsyncDisposable
     {
         private readonly ILogger<ModbusDeviceConnection> _logger;
         private readonly ModbusDeviceConfig _config;
-        private TcpClient _tcpClient;
+        private SerialPort _serialPort;
         private IModbusMaster _modbusMaster;
         private readonly SemaphoreSlim _connectionLock = new(1, 1);
         private bool _isConnected;
@@ -170,7 +188,7 @@ namespace ModbusTcpWorkerService
 
         public int DeviceId => _config.DeviceId;
         public string DeviceName => _config.DeviceName;
-        public bool IsConnected => _isConnected && _tcpClient?.Connected == true;
+        public bool IsConnected => _isConnected && _serialPort?.IsOpen == true;
 
         public ModbusDeviceConnection(
             ILogger<ModbusDeviceConnection> logger,
@@ -191,30 +209,70 @@ namespace ModbusTcpWorkerService
 
                 await DisconnectInternalAsync();
 
-                _logger.LogInformation("[{DeviceId}] Connecting to {DeviceName} at {IpAddress}:{Port}",
-                    _config.DeviceId, _config.DeviceName, _config.IpAddress, _config.Port);
-
-                _tcpClient = new TcpClient
+                // Validate port exists
+                var availablePorts = SerialPort.GetPortNames();
+                if (!availablePorts.Contains(_config.PortName))
                 {
-                    ReceiveTimeout = _config.ReadTimeoutMs,
-                    SendTimeout = _config.ReadTimeoutMs
-                };
+                    _logger.LogError("[{DeviceId}] Port {PortName} not found. Available ports: {Ports}",
+                        _config.DeviceId, _config.PortName, string.Join(", ", availablePorts));
+                    return false;
+                }
 
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                cts.CancelAfter(_config.ConnectionTimeoutMs);
+                _logger.LogInformation("[{DeviceId}] Connecting to {DeviceName} on {PortName} at {BaudRate} baud",
+                    _config.DeviceId, _config.DeviceName, _config.PortName, _config.BaudRate);
 
-                await _tcpClient.ConnectAsync(_config.IpAddress, _config.Port, cts.Token);
+                try
+                {
+                    _serialPort = new SerialPort
+                    {
+                        PortName = _config.PortName,
+                        BaudRate = _config.BaudRate,
+                        DataBits = _config.DataBits,
+                        Parity = _config.Parity,
+                        StopBits = _config.StopBits,
+                        ReadTimeout = _config.ReadTimeoutMs,
+                        WriteTimeout = _config.ReadTimeoutMs,
+                        Handshake = Handshake.None,
+                        RtsEnable = false,
+                        DtrEnable = false
+                    };
 
-                var factory = new ModbusFactory();
-                _modbusMaster = factory.CreateMaster(_tcpClient);
-                _modbusMaster.Transport.ReadTimeout = _config.ReadTimeoutMs;
-                _modbusMaster.Transport.WriteTimeout = _config.ReadTimeoutMs;
+                    _serialPort.Open();
 
-                _isConnected = true;
-                _logger.LogInformation("[{DeviceId}] Connected to {DeviceName}",
-                    _config.DeviceId, _config.DeviceName);
+                    // Wait a bit for port to stabilize
+                    await Task.Delay(100, ct);
 
-                return true;
+                    var factory = new ModbusFactory();
+                    _modbusMaster = factory.CreateRtuMaster(_serialPort);
+                    _modbusMaster.Transport.ReadTimeout = _config.ReadTimeoutMs;
+                    _modbusMaster.Transport.WriteTimeout = _config.ReadTimeoutMs;
+                    _modbusMaster.Transport.Retries = 3;
+                    _modbusMaster.Transport.WaitToRetryMilliseconds = 250;
+
+                    _isConnected = true;
+                    _logger.LogInformation("[{DeviceId}] Connected to {DeviceName}",
+                        _config.DeviceId, _config.DeviceName);
+
+                    return true;
+                }
+                catch (UnauthorizedAccessException ex)
+                {
+                    _logger.LogError(ex, "[{DeviceId}] Port {PortName} is already in use by another application",
+                        _config.DeviceId, _config.PortName);
+                    return false;
+                }
+                catch (ArgumentException ex)
+                {
+                    _logger.LogError(ex, "[{DeviceId}] Invalid port configuration: {Message}",
+                        _config.DeviceId, ex.Message);
+                    return false;
+                }
+                catch (IOException ex)
+                {
+                    _logger.LogError(ex, "[{DeviceId}] Device not functioning or disconnected: {Message}",
+                        _config.DeviceId, ex.Message);
+                    return false;
+                }
             }
             catch (Exception ex)
             {
@@ -247,6 +305,9 @@ namespace ModbusTcpWorkerService
 
             try
             {
+                // Add small delay before reading (RTU requires timing)
+                await Task.Delay(50, ct);
+
                 snapshot.HoldingRegisters = await _modbusMaster.ReadHoldingRegistersAsync(
                     _config.SlaveId, _config.StartAddress, _config.RegisterCount);
                 snapshot.IsSuccess = true;
@@ -267,9 +328,12 @@ namespace ModbusTcpWorkerService
             _modbusMaster?.Dispose();
             _modbusMaster = null;
 
-            _tcpClient?.Close();
-            _tcpClient?.Dispose();
-            _tcpClient = null;
+            if (_serialPort?.IsOpen == true)
+            {
+                _serialPort?.Close();
+            }
+            _serialPort?.Dispose();
+            _serialPort = null;
 
             _isConnected = false;
             await Task.CompletedTask;
@@ -387,32 +451,34 @@ namespace ModbusTcpWorkerService
         private readonly IServiceProvider _serviceProvider;
         private readonly IMqttPublisher _mqttPublisher;
         private readonly IModbusDataHandler _dataHandler;
+        private readonly IThresholdMonitoringService _thresholdService;
         private readonly ConcurrentDictionary<int, WorkerContext> _workers = new();
         private readonly SemaphoreSlim _managementLock = new(1, 1);
         private Timer _mqttPublishTimer;
-        private readonly int _mqttPublishIntervalMs = 1000; // Publish every 5 seconds
+        private readonly int _mqttPublishIntervalMs = 1000;
 
         private class WorkerContext
         {
             public ModbusDeviceWorker Worker { get; set; }
             public CancellationTokenSource Cts { get; set; }
         }
-
         public ModbusMultiDeviceManager(
             ILogger<ModbusMultiDeviceManager> logger,
             IServiceProvider serviceProvider,
             IMqttPublisher mqttPublisher,
-            IModbusDataHandler dataHandler)
+            IModbusDataHandler dataHandler,
+            IThresholdMonitoringService thresholdService)
         {
             _logger = logger;
             _serviceProvider = serviceProvider;
             _mqttPublisher = mqttPublisher;
             _dataHandler = dataHandler;
+            _thresholdService = thresholdService;
         }
 
         public async Task StartAsync(CancellationToken ct)
         {
-            _logger.LogInformation("Starting Modbus Multi-Device Manager");
+            _logger.LogInformation("Starting Modbus RTU Multi-Device Manager");
 
             // Connect to MQTT broker
             try
@@ -437,6 +503,7 @@ namespace ModbusTcpWorkerService
             foreach (var deviceConfig in enabledDevices)
             {
                 await AddDeviceAsync(deviceConfig, ct);
+                await _thresholdService.SetThresholdConfigAsync(deviceConfig.DeviceId, deviceConfig.Threshold, ct);
             }
 
             // Start MQTT publish timer
@@ -666,52 +733,51 @@ namespace ModbusTcpWorkerService
     }
 
     // Extension Methods for Service Registration
-    // Extension Methods for Service Registration
-public static class ModbusServiceExtensions
-{
-    public static IServiceCollection AddModbusServices(
-        this IServiceCollection services,
-        string connectionString,
-        string redisConnectionString,
-        MqttConfig mqttConfig = null)
+    public static class ModbusServiceExtensions
     {
-        // Database Context
-        services.AddDbContext<AppDbContext>(opts =>
+        public static IServiceCollection AddModbusServices(
+            this IServiceCollection services,
+            string connectionString,
+            string redisConnectionString,
+            MqttConfig mqttConfig = null)
         {
-            opts.UseMySql(
-                connectionString,
-                ServerVersion.AutoDetect(connectionString),
-                mysqlopts => mysqlopts.MigrationsAssembly("ReminderManager.Infrastructure")
-            );
-        });
+            // Database Context
+            services.AddDbContext<AppDbContext>(opts =>
+            {
+                opts.UseMySql(
+                    connectionString,
+                    ServerVersion.AutoDetect(connectionString),
+                    mysqlopts => mysqlopts.MigrationsAssembly("ReminderManager.Infrastructure")
+                );
+            });
 
-        // Redis Connection
-        services.AddSingleton<IConnectionMultiplexer>(sp =>
-        {
-            var configuration = ConfigurationOptions.Parse(redisConnectionString);
-            configuration.AbortOnConnectFail = false;
-            configuration.ConnectRetry = 3;
-            configuration.ConnectTimeout = 5000;
-            configuration.SyncTimeout = 5000;
-            
-            return ConnectionMultiplexer.Connect(configuration);
-        });
+            // Redis Connection
+            services.AddSingleton<IConnectionMultiplexer>(sp =>
+            {
+                var configuration = ConfigurationOptions.Parse(redisConnectionString);
+                configuration.AbortOnConnectFail = false;
+                configuration.ConnectRetry = 3;
+                configuration.ConnectTimeout = 5000;
+                configuration.SyncTimeout = 5000;
 
-        // MQTT Configuration
-        var config = mqttConfig ?? new MqttConfig();
-        services.AddSingleton(config);
+                return ConnectionMultiplexer.Connect(configuration);
+            });
 
-        // Modbus Services
-        services.AddSingleton<IModbusDataHandler, ModbusDataHandler>();
-        services.AddSingleton<IMqttPublisher, MqttPublisher>();
-        services.AddSingleton<IThresholdMonitoringService, ThresholdMonitoringService>();
-        
-        // Background Services
-        services.AddSingleton<ModbusMultiDeviceManager>();
-        services.AddHostedService(provider => provider.GetRequiredService<ModbusMultiDeviceManager>());
-        services.AddHostedService<ThresholdPersistenceService>();
+            // MQTT Configuration
+            var config = mqttConfig ?? new MqttConfig();
+            services.AddSingleton(config);
 
-        return services;
+            // Modbus Services
+            services.AddSingleton<IModbusDataHandler, ModbusDataHandler>();
+            services.AddSingleton<IMqttPublisher, MqttPublisher>();
+            services.AddSingleton<IThresholdMonitoringService, ThresholdMonitoringService>();
+
+            // Background Services
+            services.AddSingleton<ModbusMultiDeviceManager>();
+            services.AddHostedService(provider => provider.GetRequiredService<ModbusMultiDeviceManager>());
+            services.AddHostedService<ThresholdPersistenceService>();
+
+            return services;
+        }
     }
-}
 }

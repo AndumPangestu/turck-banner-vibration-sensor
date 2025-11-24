@@ -24,10 +24,18 @@ namespace ReminderManager.Domain.DTO
         public string? MessageThresholdVelocityX { get; set; }
         public double ThresholdVelocityZ { get; set; }
         public string? MessageThresholdVelocityZ { get; set; }
+
+        public double ThresholdVelocityY { get; set; }
+        public string? MessageThresholdVelocityY { get; set; }
+
         public double ThresholdAccelerationX { get; set; }
         public string? MessageThresholdAccelerationX { get; set; }
         public double ThresholdAccelerationZ { get; set; }
         public string? MessageThresholdAccelerationZ { get; set; }
+
+        public double ThresholdAccelerationY { get; set; }
+        public string? MessageThresholdAccelerationY { get; set; }
+
         public double ThresholdTemperature { get; set; }
         public string? MessageThresholdTemperature { get; set; }    
     }
@@ -49,10 +57,14 @@ namespace ReminderManager.Domain.DTO
                 MessageThresholdVelocityX = vibrationSensorData.MessageThresholdVelocityX,
                 ThresholdVelocityZ = vibrationSensorData.ThresholdVelocityZ,
                 MessageThresholdVelocityZ = vibrationSensorData.MessageThresholdVelocityZ,
+                ThresholdVelocityY = vibrationSensorData.ThresholdVelocityY,
+                MessageThresholdVelocityY = vibrationSensorData.MessageThresholdVelocityY,
                 ThresholdAccelerationX = vibrationSensorData.ThresholdAccelerationX,
                 MessageThresholdAccelerationX = vibrationSensorData.MessageThresholdAccelerationX,
                 ThresholdAccelerationZ = vibrationSensorData.ThresholdAccelerationZ,
                 MessageThresholdAccelerationZ = vibrationSensorData.MessageThresholdAccelerationZ,
+                ThresholdAccelerationY = vibrationSensorData.ThresholdAccelerationY,
+                MessageThresholdAccelerationY = vibrationSensorData.MessageThresholdAccelerationY,
                 ThresholdTemperature = vibrationSensorData.ThresholdTemperature,
                 MessageThresholdTemperature = vibrationSensorData.MessageThresholdTemperature,
                 CreatedAt = vibrationSensorData.CreatedAt
@@ -75,6 +87,12 @@ namespace ReminderManager.Domain.DTO
         
         public string? MessageThresholdVelocityZ { get; set; }
 
+        
+        public double ThresholdVelocityY { get; set; }
+
+        
+        public string? MessageThresholdVelocityY { get; set; }
+
         public double ThresholdAccelerationX { get; set; }
 
         
@@ -85,6 +103,12 @@ namespace ReminderManager.Domain.DTO
 
        
         public string? MessageThresholdAccelerationZ { get; set; }
+
+        
+        public double ThresholdAccelerationY { get; set; }
+
+        
+        public string? MessageThresholdAccelerationY { get; set; }
 
         
         public double ThresholdTemperature { get; set; }

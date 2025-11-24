@@ -35,6 +35,12 @@ namespace ReminderManager.Domain.Entities
         [Column("message_threshold_velocity_z")]
         public string? MessageThresholdVelocityZ { get; set; }
 
+        [Column("threshold_velocity_y")]
+        public double ThresholdVelocityY { get; set; }
+
+        [Column("message_threshold_velocity_y")]
+        public string? MessageThresholdVelocityY { get; set; }
+
         [Column("threshold_acceleration_x")]
         public double ThresholdAccelerationX { get; set; }
 
@@ -46,6 +52,12 @@ namespace ReminderManager.Domain.Entities
 
         [Column("message_threshold_acceleration_z")]
         public string? MessageThresholdAccelerationZ { get; set; }
+
+        [Column("threshold_acceleration_y")]
+        public double ThresholdAccelerationY { get; set; }
+
+        [Column("message_threshold_acceleration_y")]
+        public string? MessageThresholdAccelerationY { get; set; }
 
         [Column("threshold_temperature")]
         public double ThresholdTemperature { get; set; }

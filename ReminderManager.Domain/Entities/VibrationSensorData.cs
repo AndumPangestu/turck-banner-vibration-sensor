@@ -21,11 +21,17 @@ namespace ReminderManager.Domain.Entities
         [ForeignKey("DeviceId")]
         public ModbusDeviceConfig? Device { get; set; }
 
+        [Column("velocity_y")]
+        public double VelocityY { get; set; }
+
         [Column("velocity_x")]
         public double VelocityX { get; set; }
         
         [Column("velocity_z")]
         public double VelocityZ { get; set; }
+
+        [Column("acceleration_y")]
+        public double AccelerationY { get; set; }
 
         [Column("acceleration_x")]
         public double AccelerationX { get; set; }
@@ -33,6 +39,7 @@ namespace ReminderManager.Domain.Entities
         [Column("acceleration_z")]
         public double AccelerationZ { get; set; }
 
+        
         [Column("temperature")]
         public double Temperature { get; set; }
         

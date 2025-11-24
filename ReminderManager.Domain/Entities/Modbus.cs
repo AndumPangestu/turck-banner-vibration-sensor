@@ -2,16 +2,17 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.IO.Ports;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
 
 namespace ReminderManager.Domain.Entities
 {
     [Table("modbus_device_configs")]
     public class ModbusDeviceConfig
     {
-
         [Key]
         [Column("device_id")]
         public int DeviceId { get; set; }
@@ -19,11 +20,21 @@ namespace ReminderManager.Domain.Entities
         [Column("device_name")]
         public string DeviceName { get; set; }
 
-        [Column("ip_address")]
-        public string IpAddress { get; set; }
+        // RTU Serial Port Configuration
+        [Column("port_name")]
+        public string PortName { get; set; } // e.g., "COM1", "/dev/ttyUSB0"
 
-        [Column("port")]
-        public int Port { get; set; } = 502;
+        [Column("baud_rate")]
+        public int BaudRate { get; set; } = 9600;
+
+        [Column("data_bits")]
+        public int DataBits { get; set; } = 8;
+
+        [Column("parity")]
+        public Parity Parity { get; set; } = Parity.None;
+
+        [Column("stop_bits")]
+        public StopBits StopBits { get; set; } = StopBits.One;
 
         [Column("slave_id")]
         public byte SlaveId { get; set; } = 1;
@@ -56,9 +67,7 @@ namespace ReminderManager.Domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public ICollection<VibrationSensorData> VibrationSensorDataList { get; set; }
-
         public ICollection<ThresholdEvent> ThresholdEvents { get; set; }
-
         public Threshold? Threshold { get; set; }
     }
 

@@ -44,14 +44,20 @@ namespace ReminderManager.Infrastructure.Services
             var threshold = new Threshold
             {
                 DeviceId = request.DeviceId,
+
+                ThresholdVelocityY = request.ThresholdVelocityY,
+                MessageThresholdVelocityY = request.MessageThresholdVelocityY,
                 ThresholdVelocityX = request.ThresholdVelocityX,
                 MessageThresholdVelocityX = request.MessageThresholdVelocityX,
                 ThresholdVelocityZ = request.ThresholdVelocityZ,
                 MessageThresholdVelocityZ = request.MessageThresholdVelocityZ,
+                ThresholdAccelerationY = request.ThresholdAccelerationY,
+                MessageThresholdAccelerationY = request.MessageThresholdAccelerationY,
                 ThresholdAccelerationX = request.ThresholdAccelerationX,
                 MessageThresholdAccelerationX = request.MessageThresholdAccelerationX,
                 ThresholdAccelerationZ = request.ThresholdAccelerationZ,
                 MessageThresholdAccelerationZ = request.MessageThresholdAccelerationZ,
+                
                 ThresholdTemperature = request.ThresholdTemperature,
                 MessageThresholdTemperature = request.MessageThresholdTemperature
             };
@@ -76,8 +82,10 @@ namespace ReminderManager.Infrastructure.Services
                 query = query.Where(t =>
                     t.MessageThresholdVelocityX.Contains(filter.Keyword) ||
                     t.MessageThresholdVelocityZ.Contains(filter.Keyword) ||
+                    t.MessageThresholdVelocityY.Contains(filter.Keyword) ||
                     t.MessageThresholdAccelerationX.Contains(filter.Keyword) ||
                     t.MessageThresholdAccelerationZ.Contains(filter.Keyword) ||
+                    t.MessageThresholdAccelerationY.Contains(filter.Keyword) ||
                     t.MessageThresholdTemperature.Contains(filter.Keyword)
                 );
             }
@@ -171,10 +179,14 @@ namespace ReminderManager.Infrastructure.Services
             }
 
             // update fields
+            threshold.ThresholdVelocityY = request.ThresholdVelocityY;
+            threshold.MessageThresholdVelocityY = request.MessageThresholdVelocityY;
             threshold.ThresholdVelocityX = request.ThresholdVelocityX;
             threshold.MessageThresholdVelocityX = request.MessageThresholdVelocityX;
             threshold.ThresholdVelocityZ = request.ThresholdVelocityZ;
             threshold.MessageThresholdVelocityZ = request.MessageThresholdVelocityZ;
+            threshold.ThresholdAccelerationY = request.ThresholdAccelerationY;
+            threshold.MessageThresholdAccelerationY = request.MessageThresholdAccelerationY;
             threshold.ThresholdAccelerationX = request.ThresholdAccelerationX;
             threshold.MessageThresholdAccelerationX = request.MessageThresholdAccelerationX;
             threshold.ThresholdAccelerationZ = request.ThresholdAccelerationZ;

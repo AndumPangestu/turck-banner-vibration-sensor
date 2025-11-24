@@ -38,15 +38,23 @@ namespace ReminderManager.Domain.Entities
     {
         public string DeviceName { get; set; }
         public double VelX { get; set; }
-        public double ThresholdVelX { get; set; } = 5.0;
+        public double ThresholdVelX { get; set; } = 100;
+
+        public double VelY { get; set; }
+        public double ThresholdVelY { get; set; } = 100;
+
         public double VelZ { get; set; }
-        public double ThresholdVelZ { get; set; } = 5.0;
+        public double ThresholdVelZ { get; set; } = 100;
         public double AccX { get; set; }
-        public double ThresholdAccX { get; set; } = 5.0;
+        public double ThresholdAccX { get; set; } = 100;
         public double AccZ { get; set; }
-        public double ThresholdAccZ { get; set; } = 5.0;
+        public double ThresholdAccZ { get; set; } = 100;
+
+        public double AccY { get; set; }
+        public double ThresholdAccY { get; set; } = 100;
+
         public double Temp { get; set; }
-        public double ThresholdTemp { get; set; } = 5.0;
+        public double ThresholdTemp { get; set; } = 100;
         public string Status { get; set; }
         public DateTime Timestamp { get; set; }
     }

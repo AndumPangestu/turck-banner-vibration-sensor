@@ -35,8 +35,10 @@ namespace ReminderManager.Domain.DTO
                 DeviceName = vibrationSensorData.Device?.DeviceName,
                 VelocityX = vibrationSensorData.VelocityX,
                 VelocityZ = vibrationSensorData.VelocityZ,
+                VelocityY = vibrationSensorData.VelocityY,
                 AccelerationX = vibrationSensorData.AccelerationX,
                 AccelerationZ = vibrationSensorData.AccelerationZ,
+                AccelerationY = vibrationSensorData.AccelerationY,
                 Temperature = vibrationSensorData.Temperature,
                 CreatedAt = vibrationSensorData.CreatedAt
             };
@@ -50,8 +52,13 @@ namespace ReminderManager.Domain.DTO
         public string? DeviceName { get; set; }
         public double VelocityX { get; set; }
         public double VelocityZ { get; set; }
+
+        public double VelocityY { get; set; }
+
         public double AccelerationX { get; set; }
         public double AccelerationZ { get; set; }
+
+        public double AccelerationY { get; set; }
         public double Temperature { get; set; }
         public DateTime CreatedAt { get; set; }
     }

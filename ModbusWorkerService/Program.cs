@@ -4,7 +4,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using ModbusTcpWorkerService;
+using ModbusRtuWorkerService;
 using ReminderManager.Domain.Entities;
 
 public class Program

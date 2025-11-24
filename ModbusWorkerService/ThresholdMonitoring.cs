@@ -39,6 +39,11 @@ namespace ModbusTcpWorkerService
     public interface IThresholdMonitoringService
     {
         Task CheckThresholdsAsync(ModbusDataSnapshot snapshot, CancellationToken ct);
+
+        Task SetThresholdConfigAsync(int deviceId, Threshold threshold, CancellationToken ct);
+
+        Task<Threshold> GetThresholdConfigAsync(int deviceId, CancellationToken ct);
+
         Task<List<ThresholdEvent>> GetRecentEventsAsync(int deviceId, int count = 10, CancellationToken ct = default);
         Task ClearDeviceCacheAsync(int deviceId, CancellationToken ct = default);
     }
@@ -83,14 +88,22 @@ namespace ModbusTcpWorkerService
                 }
 
                 // Convert register values
-                var temp = ConvertRegisterToDouble(snapshot.HoldingRegisters[0]);
+                var velX = ConvertRegisterToDouble(snapshot.HoldingRegisters[0]);
                 var accX = ConvertRegisterToDouble(snapshot.HoldingRegisters[1]);
-                var accZ = ConvertRegisterToDouble(snapshot.HoldingRegisters[2]);
-                var velX = ConvertRegisterToDouble(snapshot.HoldingRegisters[3]);
+                var velY = ConvertRegisterToDouble(snapshot.HoldingRegisters[2]);
+                var accY = ConvertRegisterToDouble(snapshot.HoldingRegisters[3]);
                 var velZ = ConvertRegisterToDouble(snapshot.HoldingRegisters[4]);
+                var accZ = ConvertRegisterToDouble(snapshot.HoldingRegisters[5]);
+                var temp = ConvertRegisterToDouble(snapshot.HoldingRegisters[6]);
 
                 // Check each threshold
                 var events = new List<ThresholdEventDto>();
+
+                CheckAndAddEvent(events, snapshot.DeviceId, "VelocityY", velY,
+                    threshold.ThresholdVelocityY, threshold.MessageThresholdVelocityY);
+
+                CheckAndAddEvent(events, snapshot.DeviceId, "AccelerationY", accY,
+                    threshold.ThresholdAccelerationY, threshold.MessageThresholdAccelerationY);
 
                 CheckAndAddEvent(events, snapshot.DeviceId, "VelocityX", velX,
                     threshold.ThresholdVelocityX, threshold.MessageThresholdVelocityX);
@@ -250,7 +263,7 @@ namespace ModbusTcpWorkerService
             }
         }
 
-        private async Task<Threshold> GetThresholdConfigAsync(int deviceId, CancellationToken ct)
+        public async Task<Threshold> GetThresholdConfigAsync(int deviceId, CancellationToken ct)
         {
             var cacheKey = RedisCacheKeys.ThresholdConfig(deviceId);
 
@@ -286,6 +299,22 @@ namespace ModbusTcpWorkerService
             {
                 _logger.LogError(ex, "[{DeviceId}] Error getting threshold configuration", deviceId);
                 return null;
+            }
+        }
+
+        public async Task SetThresholdConfigAsync(int deviceId, Threshold threshold, CancellationToken ct)
+        {
+            try
+            {
+                if (threshold != null)
+                {
+                    var json = JsonSerializer.Serialize(threshold);
+                    await _redisDb.StringSetAsync(RedisCacheKeys.ThresholdConfig(deviceId), json, _cacheExpiry);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[{DeviceId}] Error setting threshold configuration", deviceId);
             }
         }
 
