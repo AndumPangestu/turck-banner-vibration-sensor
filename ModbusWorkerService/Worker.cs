@@ -90,13 +90,13 @@ namespace ModbusRtuWorkerService
             {
 
                 // Convert ushort to double
-                mqttData.VelX = ConvertRegisterToDouble(snapshot.HoldingRegisters[0]);
-                mqttData.AccX = ConvertRegisterToDouble(snapshot.HoldingRegisters[1]);
-                mqttData.VelY = ConvertRegisterToDouble(snapshot.HoldingRegisters[2]);
-                mqttData.AccY = ConvertRegisterToDouble(snapshot.HoldingRegisters[3]);
-                mqttData.VelZ = ConvertRegisterToDouble(snapshot.HoldingRegisters[4]);
-                mqttData.AccZ = ConvertRegisterToDouble(snapshot.HoldingRegisters[5]);
-                mqttData.Temp = ConvertRegisterToDouble(snapshot.HoldingRegisters[6]);
+                mqttData.VelX = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[0], 1000);
+                mqttData.AccX = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[1], 1000);
+                mqttData.VelY = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[2], 1000);
+                mqttData.AccY = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[3], 1000);
+                mqttData.VelZ = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[4], 1000);
+                mqttData.AccZ = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[5], 1000);
+                mqttData.Temp = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[6], 100);
 
                 var threshold = await _thresholdService.GetThresholdConfigAsync(snapshot.DeviceId, ct);
                 if (threshold != null)
@@ -130,11 +130,7 @@ namespace ModbusRtuWorkerService
             }
         }
 
-        private double ConvertRegisterToDouble(ushort register)
-        {
-            short signedValue = unchecked((short)register);
-            return signedValue;
-        }
+        
 
         public MqttDeviceData GetLatestDeviceData(int deviceId)
         {
@@ -151,13 +147,13 @@ namespace ModbusRtuWorkerService
                 var sensorData = new VibrationSensorData
                 {
                     DeviceId = snapshot.DeviceId,
-                    VelocityX = snapshot.HoldingRegisters[0],
-                    AccelerationX = snapshot.HoldingRegisters[1],
-                    VelocityY = snapshot.HoldingRegisters[2],
-                    AccelerationY = snapshot.HoldingRegisters[3],
-                    VelocityZ = snapshot.HoldingRegisters[4],
-                    AccelerationZ = snapshot.HoldingRegisters[5],
-                    Temperature = snapshot.HoldingRegisters[6],
+                    VelocityX = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[0], 1000),
+                    AccelerationX = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[1], 1000),
+                    VelocityY = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[2], 1000),
+                    AccelerationY = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[3], 1000),
+                    VelocityZ = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[4], 1000),
+                    AccelerationZ = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[5], 1000),
+                    Temperature = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[6], 100),
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -455,7 +451,7 @@ namespace ModbusRtuWorkerService
         private readonly ConcurrentDictionary<int, WorkerContext> _workers = new();
         private readonly SemaphoreSlim _managementLock = new(1, 1);
         private Timer _mqttPublishTimer;
-        private readonly int _mqttPublishIntervalMs = 1000;
+        private readonly int _mqttPublishIntervalMs = 500;
 
         private class WorkerContext
         {
@@ -503,7 +499,7 @@ namespace ModbusRtuWorkerService
             foreach (var deviceConfig in enabledDevices)
             {
                 await AddDeviceAsync(deviceConfig, ct);
-                await _thresholdService.SetThresholdConfigAsync(deviceConfig.DeviceId, deviceConfig.Threshold, ct);
+                //await _thresholdService.SetThresholdConfigAsync(deviceConfig.DeviceId, deviceConfig.Threshold, ct);
             }
 
             // Start MQTT publish timer

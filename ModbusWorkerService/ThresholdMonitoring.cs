@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ModbusWorkerService;
 using ReminderManager.Domain.Entities;
 using ReminderManager.Infrastructure.Data;
 using StackExchange.Redis;
@@ -88,13 +89,13 @@ namespace ModbusTcpWorkerService
                 }
 
                 // Convert register values
-                var velX = ConvertRegisterToDouble(snapshot.HoldingRegisters[0]);
-                var accX = ConvertRegisterToDouble(snapshot.HoldingRegisters[1]);
-                var velY = ConvertRegisterToDouble(snapshot.HoldingRegisters[2]);
-                var accY = ConvertRegisterToDouble(snapshot.HoldingRegisters[3]);
-                var velZ = ConvertRegisterToDouble(snapshot.HoldingRegisters[4]);
-                var accZ = ConvertRegisterToDouble(snapshot.HoldingRegisters[5]);
-                var temp = ConvertRegisterToDouble(snapshot.HoldingRegisters[6]);
+                var velX = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[0], 1000);
+                var accX = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[1], 1000);
+                var velY = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[2], 1000);
+                var accY = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[3], 1000);
+                var velZ = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[4], 1000);
+                var accZ = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[5], 1000);
+                var temp = ModbusHelper.ConvertRegisterToDouble(snapshot.HoldingRegisters[6], 100);
 
                 // Check each threshold
                 var events = new List<ThresholdEventDto>();
@@ -368,11 +369,7 @@ namespace ModbusTcpWorkerService
             }
         }
 
-        private double ConvertRegisterToDouble(ushort register)
-        {
-            short signedValue = unchecked((short)register);
-            return signedValue;
-        }
+       
     }
 
     // Background service to persist pending events periodically
