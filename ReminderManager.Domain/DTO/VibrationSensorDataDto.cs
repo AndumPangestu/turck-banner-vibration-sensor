@@ -20,6 +20,22 @@ namespace ReminderManager.Domain.DTO
         public int Limit { get; set; } = 10;
     }
 
+    public class VibrationSensorDataAnalyzeRequest
+    {
+        public double VelocityX { get; set; }
+        public double VelocityY { get; set; }
+        public double VelocityZ { get; set; }
+
+        public double AccelerationX { get; set; }
+        public double AccelerationY { get; set; }
+        public double AccelerationZ { get; set; }
+
+        public double Temperature { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+    }
+
+
 
     public static class VibrationSensorDataMapper
     {

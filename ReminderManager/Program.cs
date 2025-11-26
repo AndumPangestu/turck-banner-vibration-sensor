@@ -105,6 +105,10 @@ builder.Services.AddScoped<IVibrationSensorDataService, VibrationSensorDataServi
 builder.Services.AddScoped<IThresholdService, ThresholdService>();
 builder.Services.AddScoped<IModbusDeviceConfigService, ModbusDeviceConfigService>();
 builder.Services.AddScoped<IThresholdEventService, ThresholdEventService>();
+
+// HttpClient
+builder.Services.AddHttpClient();
+
 var app = builder.Build();
 
 
